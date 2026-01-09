@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Reconnaissance Image - Teachable Machine</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Librairies Teachable Machine -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest"></script>
+
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial;
+            background: #f0f0f0;
+        }
+        video {
+            width: 90%;
+            max-width: 400px;
+            border-radius: 10px;
+        }
+        #result {
+            font-size: 22px;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>📷 Reconnaissance d’Images</h2>
+<button onclick="init()">▶️ Démarrer</button>
+
+<br><br>
+<video id="webcam" autoplay playsinline></video>
+
+<div id="result">Résultat : ---</div>
+
+<script>
+    const URL = "YOUR_MODEL_URL/";
+
+    let model, webcam, maxPredictions;
+
+    async function init() {
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+
+        webcam = new tmImage.Webcam(300, 300, true);
+        await webcam.setup();
+        await webcam.play();
+
+        document.getElementById("webcam").srcObject = webcam.webcam.stream;
+
+        window.requestAnimationFrame(loop);
+    }
+
+    async function loop() {
+        webcam.update();
+        await predict();
+        window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+        const prediction = await model.predict(webcam.canvas);
+
+        let bestClass = "";
+        let bestProb = 0;
+
+        for (let i = 0; i < maxPredictions; i++) {
+            if (prediction[i].probability > bestProb) {
+                bestProb = prediction[i].probability;
+                bestClass = prediction[i].className;
+            }
+        }
+
+        document.getElementById("result").innerHTML =
+            "Résultat : " + bestClass + " (" + (bestProb * 100).toFixed(1) + "%)";
+
+        envoyerCommande(bestClass);
+    }
+
+    function envoyerCommande(classe) {
+        let cmd = "";
+
+        if (classe === "Avancer") cmd = "F";
+        else if (classe === "Reculer") cmd = "B";
+        else if (classe === "Gauche") cmd = "L";
+        else if (classe === "Droite") cmd = "R";
+        else if (classe === "Stop") cmd = "S";
+
+        if (cmd !== "") {
+            console.log("Commande envoyée :", cmd);
+            // 👉 ici on enverra vers Arduino (Bluetooth / WiFi)
+        }
+    }
+</script>
+
+</body>
+</html>
